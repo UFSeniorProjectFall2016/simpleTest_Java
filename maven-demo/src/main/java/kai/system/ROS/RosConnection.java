@@ -1,5 +1,12 @@
 package kai.system.ROS;
 
+import java.util.Timer;
+import java.util.TimerTask;
+
+import javax.json.Json;
+import javax.json.JsonObject;
+
+import edu.wpi.rail.jrosbridge.JRosbridge;
 import edu.wpi.rail.jrosbridge.Ros;
 import edu.wpi.rail.jrosbridge.Service;
 import edu.wpi.rail.jrosbridge.Topic;
@@ -12,14 +19,62 @@ public class RosConnection {
 	
 	// Member class variables
 	private String host = "localhost";
-	private int port = 9898;
-	private Ros ros = new Ros(host, port);	
+	private int port = 9090;
+	private Ros ros;	
 	private Message lstRecMsg;
+	private Topic currTopic;
+	
+	public static Ros con = new Ros("localhost", 9090);
+	public static Topic echo = new Topic(con, "/JDK", "std_msgs/String");
+	public static Topic echoBack = new Topic(con, "/test", "std_msgs/String");
+	
+	public static String cmdMsg1 = "{\"DevId\":1, \"S\":\"ON\"}";
+//	public static String cmdMsg = "{\"S\": 123}";
+	public static String cmdMsg = Json.createObjectBuilder().add("data", cmdMsg1).build().toString();
+	public static Message msg = new Message(cmdMsg);
+	public static String publishId = "publish:" + echo.getName() + ":" + con.nextId();
+	public static JsonObject call = Json.createObjectBuilder().add(JRosbridge.FIELD_OP, JRosbridge.OP_CODE_PUBLISH).add(JRosbridge.FIELD_ID, publishId).add(JRosbridge.FIELD_TOPIC, echo.getName()).add("data", msg.toJsonObject()).build();
+	
+	public static void main(String args[]) {
+		Timer timer = new Timer();
+		boolean connected = false;
+		connected = con.connect();	
+		System.out.println("Connected: " + connected);
+		
+		if(connected) {
+			// Sending message to ROS
+			timer.scheduleAtFixedRate(new TimerTask() {
+				public void run() {
+					echo.publish(msg);
+					
+					// Listen for changes
+					echoBack.subscribe(new TopicCallback() {
+						public void handleMessage(Message message) {
+							// TODO Auto-generated method stub
+							System.out.println("Message from ORS: " + message.toString());
+						}
+					});
+				}
+			}, 100, 100);
+		}
+	}
+	
+	public RosConnection() {
+		this.ros = new Ros(host, port);
+		ros.connect();
+	}
+	
+	public RosConnection(Ros ros) {
+		this.host = ros.getHostname();
+		this.port = ros.getPort();
+		this.ros = ros;
+	}
 	
 	public RosConnection(String host, int port) {
 		this.host = host;
 		this.port = port;
 		this.ros = new Ros(host, port);
+		ros.connect();
 	}
 	
 	public boolean connect() {
@@ -30,17 +85,26 @@ public class RosConnection {
 		return ros.disconnect();
 	}
 	
-	public Topic createTopic(String topicName, String msgType) {
-		Topic tp = new Topic(ros, topicName, msgType);
-		return tp;
+	public void createTopic(String topicName, String msgType) {
+		currTopic = new Topic(this.ros, topicName, msgType); 
+	}
+	
+	public Topic getCurrTopic() {
+		return this.currTopic;
 	}
 	
 	public Message createMessage(String msg) {
-		return new Message(msg);
+		JsonObject msgJSON = Json.createObjectBuilder().add("data", msg).build();
+		return new Message(msgJSON);
 	}
 	
-	public void sendMsg(Topic topic, Message msg) {
-		topic.publish(msg);
+	public boolean sendMsg(Message msg) {
+		if(currTopic == null) {
+			return false;
+		}
+		
+		currTopic.publish(msg);
+		return true;
 	}
 	
 	public Message receiveMsg(Topic topic) {

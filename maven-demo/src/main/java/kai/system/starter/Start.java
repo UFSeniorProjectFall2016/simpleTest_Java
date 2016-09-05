@@ -1,16 +1,14 @@
 package kai.system.starter;
 
-import java.net.URISyntaxException;
-import java.util.Scanner;
-
-import javax.swing.BorderFactory;
-
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
+
+import java.net.URISyntaxException;
+import java.util.Scanner;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class Start {
 	// Constants
@@ -31,7 +29,7 @@ public class Start {
 	private boolean windows = false;
 	private boolean light = false;
 
-	public static void main(String[] args) {
+	public static void main1(String[] args) {
 		Start start = new Start();
 		Scanner in = new Scanner(System.in);
 		int menuChoice;
