@@ -1,4 +1,4 @@
-package kai.system.ROS;
+package kai.system.ros;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -85,8 +85,12 @@ public class RosConnection {
 		return ros.disconnect();
 	}
 	
-	public void createTopic(String topicName, String msgType) {
-		currTopic = new Topic(this.ros, topicName, msgType); 
+	public Topic createTopic(String topicName, String msgType) {
+		return new Topic(this.ros, topicName, msgType); 
+	}
+	
+	public void setCurrTopic(Topic topic) {
+		currTopic = new Topic(this.ros, topic.getName(), topic.getType());
 	}
 	
 	public Topic getCurrTopic() {

@@ -1,4 +1,4 @@
-package kai.system.Objects;
+package kai.system.objects;
 
 public class ROSDevices {
 	// Harccoded devices IDs
