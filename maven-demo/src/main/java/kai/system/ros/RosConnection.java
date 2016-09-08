@@ -22,7 +22,9 @@ public class RosConnection {
 	private int port = 9090;
 	private Ros ros;	
 	private Message lstRecMsg;
+	private Message currMsg;
 	private Topic currTopic;
+	private boolean connected = false;
 	
 	public static Ros con = new Ros("localhost", 9090);
 	public static Topic echo = new Topic(con, "/JDK", "std_msgs/String");
@@ -35,14 +37,14 @@ public class RosConnection {
 	public static String publishId = "publish:" + echo.getName() + ":" + con.nextId();
 	public static JsonObject call = Json.createObjectBuilder().add(JRosbridge.FIELD_OP, JRosbridge.OP_CODE_PUBLISH).add(JRosbridge.FIELD_ID, publishId).add(JRosbridge.FIELD_TOPIC, echo.getName()).add("data", msg.toJsonObject()).build();
 	
-	public static void main(String args[]) {
+	public static void main2(String args[]) {
 		Timer timer = new Timer();
 		boolean connected = false;
 		connected = con.connect();	
 		System.out.println("Connected: " + connected);
 		
-		if(connected) {
-			// Sending message to ROS
+		RosConnection rosConn = new RosConnection("localhost", 9090);
+		if(rosConn.isConnected()) {
 			timer.scheduleAtFixedRate(new TimerTask() {
 				public void run() {
 					echo.publish(msg);
@@ -57,36 +59,64 @@ public class RosConnection {
 				}
 			}, 100, 100);
 		}
+		
+//		
+//		if(connected) {
+//			// Sending message to ROS
+//			timer.scheduleAtFixedRate(new TimerTask() {
+//				public void run() {
+//					echo.publish(msg);
+//					
+//					// Listen for changes
+//					echoBack.subscribe(new TopicCallback() {
+//						public void handleMessage(Message message) {
+//							// TODO Auto-generated method stub
+//							System.out.println("Message from ORS: " + message.toString());
+//						}
+//					});
+//				}
+//			}, 100, 100);
+//		}
 	}
 	
 	public RosConnection() {
 		this.ros = new Ros(host, port);
-		ros.connect();
+		this.connect();
 	}
 	
 	public RosConnection(Ros ros) {
 		this.host = ros.getHostname();
 		this.port = ros.getPort();
 		this.ros = ros;
+		this.connect();
 	}
 	
 	public RosConnection(String host, int port) {
 		this.host = host;
 		this.port = port;
 		this.ros = new Ros(host, port);
-		ros.connect();
+		this.connect();
 	}
 	
-	public boolean connect() {
-		return ros.connect();
+	public void connect() {
+		connected = ros.connect();
+	}
+	
+	public boolean isConnected() {
+		return connected;
 	}
 	
 	public boolean disconnect() {
 		return ros.disconnect();
 	}
 	
+	// CREATE, SET, & GET TOPIC
 	public Topic createTopic(String topicName, String msgType) {
 		return new Topic(this.ros, topicName, msgType); 
+	}
+	
+	public void setCurrTopic(String topicName, String msgType) {
+		currTopic = this.createTopic(topicName, msgType);
 	}
 	
 	public void setCurrTopic(Topic topic) {
@@ -97,27 +127,36 @@ public class RosConnection {
 		return this.currTopic;
 	}
 	
+	// CREATE, SET, & GET MESSAGE
 	public Message createMessage(String msg) {
 		JsonObject msgJSON = Json.createObjectBuilder().add("data", msg).build();
 		return new Message(msgJSON);
 	}
 	
 	public boolean sendMsg(Message msg) {
-		if(currTopic == null) {
-			return false;
-		}
+		// Message cannot be sent if topic fails
+		if(currTopic == null) { return false; }
 		
 		currTopic.publish(msg);
 		return true;
 	}
 	
-	public Message receiveMsg(Topic topic) {
+	public boolean sendMsg(String msg) {
+		// Message cannot be sent if topic fails
+		if(msg.isEmpty()) { return false; }
+		return this.sendMsg(this.createMessage(msg));
+	}
+	
+	public boolean receiveMsg(Topic topic) {
+		lstRecMsg = null;
 		topic.subscribe(new TopicCallback() {
 			public void handleMessage(Message message) {
 				lstRecMsg = message.clone();
 	        }
 		});
-		return lstRecMsg;
+		
+		if(lstRecMsg == null) { return false; }
+		return true;
 	}
 	
 	public static void main1(String[] args) throws InterruptedException {

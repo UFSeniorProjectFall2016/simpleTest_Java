@@ -11,6 +11,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class SocketConnection {
+	// Members
+	JSONObject rcvMsg;
+	
 	// Constants
 	public final static String DOOR_ID = "#door";
 	public final static String LIGHT_ID = "#light";
@@ -18,7 +21,7 @@ public class SocketConnection {
 	public final static String WINDOWS_ID = "#wind";
 
 	// Members class
-	private String link = "http://localhost:5000";
+	private String host = "http://localhost:5000";
 	private String link2 = "https://sleepy-inlet-14613.herokuapp.com/";
 	private Socket socket;
 	private boolean connected = false;
@@ -29,8 +32,111 @@ public class SocketConnection {
 	private boolean windows = false;
 	private boolean light = false;
 
+	public SocketConnection(String host) {
+		if(host == null) {
+			// Throw error
+			connected = false;
+		} else {
+			this.connect();
+		}
+	}
+	
+	public void connect() {
+		try {
+			socket = IO.socket(link2);
+			this.sendMsg("connected_user", "Java Application");
+			
+			// Retrieving data from socket
+			socket.on("connection_confirmation", new Emitter.Listener() {
+				public void call(Object... args) {
+					connected = (Boolean) args[0];
+				}
+			}).on("device status", new Emitter.Listener() {
+
+				public void call(Object... args) {
+					JSONObject obj = (JSONObject) args[0];
+					String id = "";
+					boolean status = false;
+					try {
+						id = obj.getString("id");
+						status = obj.getBoolean("status");
+					} catch (JSONException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+
+					if (id.equalsIgnoreCase(DOOR_ID)) {
+						door = status;
+					} else if (id.equalsIgnoreCase(COFFEE_ID)) {
+						coffee = status;
+					} else if (id.equalsIgnoreCase(WINDOWS_ID)) {
+						windows = status;
+					} else if (id.equalsIgnoreCase(LIGHT_ID)) {
+						light = status;
+					}
+				}
+			});
+			socket.connect();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+			System.out.println("SOCKET DID NOT GET CREATED");
+		}
+	}
+	
+	// CREATE, SEND, & RECEIVE MESSAGE
+	public JSONObject createMsg(String id, String name, boolean status) {
+		JSONObject msg = new JSONObject();
+		try {
+			msg.put("id", id);
+			msg.put("name", name);
+			msg.put("status", status);
+		} catch (JSONException e) {
+			System.out.println("Some error happened while creating the message");
+			e.printStackTrace();
+		}
+		return msg;
+	}
+	
+	public boolean sendMsg(String msgType, String msgData) {
+		if(socket == null) {
+			return false;
+		}
+		socket.emit(msgType, msgData);
+		return true;
+	}
+	
+	public void sendMsg(String event, String id, String name, boolean status) {
+		JSONObject msg = createMsg(id, name, status);
+		socket.emit(event, msg);
+	}
+	
+	public boolean receiveMessage() {
+		return true;
+	}
+
+	// DEVICES STATUS
+	public int[] getDeviceStatus() {
+		int[] res = new int[4];
+		if(door) {
+			res[0] = 1;
+		}
+		
+		if(light) {
+			res[1] = 1;
+		}
+		
+		if(coffee) {
+			res[2] = 1;
+		}
+		
+		if(windows) {
+			res[3] = 1;
+		}
+		return res;
+	}
+	
 	public static void main1(String[] args) {
-		SocketConnection start = new SocketConnection();
+		SocketConnection start = new SocketConnection("");
 		Scanner in = new Scanner(System.in);
 		int menuChoice;
 		JSONObject msg;
@@ -50,14 +156,14 @@ public class SocketConnection {
 
 			case 1:
 				start.initConnection();
-				while (!start.isSocketConnected()) {
+				while (!start.isConnected()) {
 					System.out.println("Waiting for connection to be established");
 				}
 				System.out.println("Connection established successfully");
 				break;
 
 			case 2:
-				if (!start.isSocketConnected()) {
+				if (!start.isConnected()) {
 					System.out.println("Error! No connection established yet. Connect first");
 					break;
 				}
@@ -70,7 +176,7 @@ public class SocketConnection {
 				break;
 
 			case 3:
-				if (!start.isSocketConnected()) {
+				if (!start.isConnected()) {
 					System.out.println("Error! No connection established yet. Connect first");
 					break;
 				}
@@ -83,7 +189,7 @@ public class SocketConnection {
 				break;
 
 			case 4:
-				if (!start.isSocketConnected()) {
+				if (!start.isConnected()) {
 					System.out.println("Error! No connection established yet. Connect first");
 					break;
 				}
@@ -96,7 +202,7 @@ public class SocketConnection {
 				break;
 
 			case 5:
-				if (!start.isSocketConnected()) {
+				if (!start.isConnected()) {
 					System.out.println("Error! No connection established yet. Connect first");
 					break;
 				}
@@ -109,7 +215,7 @@ public class SocketConnection {
 				break;
 
 			case 6:
-				if (!start.isSocketConnected()) {
+				if (!start.isConnected()) {
 					System.out.println("Error! No connection established yet. Connect first");
 					break;
 				}
@@ -123,18 +229,7 @@ public class SocketConnection {
 		in.close();
 	}
 
-	public JSONObject createMsg(String id, String name, boolean status) {
-		JSONObject msg = new JSONObject();
-		try {
-			msg.put("id", id);
-			msg.put("name", name);
-			msg.put("status", status);
-		} catch (JSONException e) {
-			System.out.println("Some error happened while creating the message");
-			e.printStackTrace();
-		}
-		return msg;
-	}
+	
 
 	public void printDevicesStatus() {
 
@@ -148,14 +243,11 @@ public class SocketConnection {
 		System.out.println("--------------------------------------------------\n");
 	}
 
-	public boolean isSocketConnected() {
+	public boolean isConnected() {
 		return connected;
 	}
 
-	public void sendMsg(String event, String id, String name, boolean status) {
-		JSONObject msg = createMsg(id, name, status);
-		socket.emit(event, msg);
-	}
+	
 	
 	public void initConnection() {
 		try {
