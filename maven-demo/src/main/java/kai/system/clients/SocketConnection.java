@@ -19,6 +19,7 @@ public class SocketConnection {
 	public final static String LIGHT_ID = "#light";
 	public final static String COFFEE_ID = "#coffee";
 	public final static String WINDOWS_ID = "#wind";
+	public final static String HUMIDITY_ID = "#humidity";
 
 	// Members class
 	private String host = "http://localhost:5000";

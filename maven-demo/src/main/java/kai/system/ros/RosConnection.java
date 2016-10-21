@@ -20,14 +20,15 @@ public class RosConnection {
 	// Member class variables
 	private String host = "localhost";
 	private int port = 9090;
-	private Ros ros;	
+	private Ros ros;
+	private String msgString;
 	private Message lstRecMsg;
 	private Message currMsg;
 	private Topic currTopic;
 	private boolean connected = false;
 	
 	public static Ros con = new Ros("localhost", 9090);
-	public static Topic echo = new Topic(con, "/JDK", "std_msgs/String");
+	public static Topic echo = new Topic(con, "/Config_vals", "std_msgs/String");
 	public static Topic echoBack = new Topic(con, "/test", "std_msgs/String");
 	
 	public static String cmdMsg1 = "{\"DevId\":1, \"S\":\"ON\"}";
@@ -37,7 +38,7 @@ public class RosConnection {
 	public static String publishId = "publish:" + echo.getName() + ":" + con.nextId();
 	public static JsonObject call = Json.createObjectBuilder().add(JRosbridge.FIELD_OP, JRosbridge.OP_CODE_PUBLISH).add(JRosbridge.FIELD_ID, publishId).add(JRosbridge.FIELD_TOPIC, echo.getName()).add("data", msg.toJsonObject()).build();
 	
-	public static void main2(String args[]) {
+	public static void main3(String args[]) {
 		Timer timer = new Timer();
 		boolean connected = false;
 		connected = con.connect();	
@@ -137,6 +138,7 @@ public class RosConnection {
 		// Message cannot be sent if topic fails
 		if(currTopic == null) { return false; }
 		
+//		System.out.println("Publishing to ROS");
 		currTopic.publish(msg);
 		return true;
 	}
@@ -155,11 +157,38 @@ public class RosConnection {
 	        }
 		});
 		
-		if(lstRecMsg == null) { return false; }
+		if(lstRecMsg == null) { 
+//			System.out.println("null");
+			return false; 
+		}
+		System.out.println("Message Received: " + lstRecMsg.toString());
+//		String[] tmp = lstRecMsg.toString().split("+[\",]");
+//		System.out.println("Size: " + tmp.length);
 		return true;
 	}
 	
-	public static void main1(String[] args) throws InterruptedException {
+	public boolean getMsg() {
+		lstRecMsg = null;
+		this.currTopic.subscribe(new TopicCallback() {
+			public void handleMessage(Message message) {
+				lstRecMsg = message.clone();
+	        }
+		});
+		
+		if(lstRecMsg == null) { 
+			return false; 
+		}
+		System.out.println("Message Received: " + lstRecMsg.toString());
+		return true;
+	}
+	
+	public void printRecMsg() {
+		if(lstRecMsg != null) {
+			System.out.println("Message Received: " + msgString);
+		}
+	}
+	
+	public static void main4(String[] args) throws InterruptedException {
 	    Ros ros = new Ros("localhost");
 	    ros.connect();
 
@@ -174,11 +203,11 @@ public class RosConnection {
 	        }
 	    });
 
-	    Service addTwoInts = new Service(ros, "/add_two_ints", "rospy_tutorials/AddTwoInts");
-
-	    ServiceRequest request = new ServiceRequest("{\"a\": 10, \"b\": 20}");
-	    ServiceResponse response = addTwoInts.callServiceAndWait(request);
-	    System.out.println(response.toString());
+//	    Service addTwoInts = new Service(ros, "/add_two_ints", "rospy_tutorials/AddTwoInts");
+//
+//	    ServiceRequest request = new ServiceRequest("{\"a\": 10, \"b\": 20}");
+//	    ServiceResponse response = addTwoInts.callServiceAndWait(request);
+//	    System.out.println(response.toString());
 
 	    ros.disconnect();
 	}

@@ -1,5 +1,9 @@
 package kai.system.starter;
 
+import java.util.concurrent.TimeUnit;
+
+import edu.wpi.rail.jrosbridge.callback.TopicCallback;
+import edu.wpi.rail.jrosbridge.messages.Message;
 import kai.system.clients.SocketConnection;
 import kai.system.ros.RosConnection;
 
@@ -10,6 +14,7 @@ public class Start {
 	SocketConnection webConn;
 	boolean bridge;
 	int[] devStatus = new int[4];
+	static boolean alternate = true;
 	
 	// Default Constructor
 	public Start() {
@@ -31,6 +36,7 @@ public class Start {
 	}
 	
 	public void setBridge() {
+//		rosConn.connect();
 		bridge = rosConn.isConnected() && webConn.isConnected();
 	}
 	
@@ -53,7 +59,7 @@ public class Start {
 		case 0:
 			System.out.println("CLOSING DOOR");
 			cmdMsg1 = "{\"DevId\":1,\"S\":\"OF\"}";
-			rosConn.sendMsg(cmdMsg1);
+			this.rosConn.sendMsg(cmdMsg1);
 			break;
 		case 1:
 			System.out.println("CLOSING LIGHT");
@@ -76,7 +82,7 @@ public class Start {
 		case 0:
 			System.out.println("OPEN DOOR");
 			cmdMsg1 = "{\"DevId\":1,\"S\":\"ON\"}";
-			rosConn.sendMsg(cmdMsg1);
+			this.rosConn.sendMsg(cmdMsg1);
 			break;
 		case 1:
 			System.out.println("OPEN LIGHT");
@@ -100,8 +106,9 @@ public class Start {
 		}
 	}
 	
-	public static void main(String args[]) {
+	public static void main(String args[]) throws InterruptedException {
 		Start start = new Start();
+		long strtTime = System.currentTimeMillis();
 		
 		// Wait for bridge to be set
 		while(!start.isBridgeSet()) {
@@ -113,15 +120,39 @@ public class Start {
 		System.out.println("Bridge set successfully");
 		
 		// Create other ROS variables
-		start.getROSConn().setCurrTopic("/Config_vals", "std_msgs/String");
-		
+		int arr[];
 		while(true) {
-			int arr[] = start.getWebConn().getDeviceStatus();
-			for(int i=0; i!=arr.length; ++i) {
-				if(start.getDeviceLastStatus(i) != arr[i]) {
-					start.operateDevice(i);
-				} 
+			
+//			start.getROSConn().sendMsg("{\"DevId\":1,\"S\":\"ON\"}");
+			if(alternate) {
+				while(System.currentTimeMillis() - strtTime < 10000) {
+					arr = start.getWebConn().getDeviceStatus();
+					start.getROSConn().setCurrTopic("/Config_vals", "std_msgs/String");
+					for(int i=0; i!=arr.length; ++i) {
+						if(start.getDeviceLastStatus(i) != arr[i]) {
+							start.operateDevice(i);
+						} 
+					}
+				}
+				alternate = false;
+				strtTime = System.currentTimeMillis();
+			} else {
+				while(System.currentTimeMillis() - strtTime < 500) {
+					start.getROSConn().setCurrTopic("/test", "std_msgs/String");
+					start.getROSConn().getMsg();
+				}
+				alternate = true;
+				strtTime = System.currentTimeMillis();
 			}
+			
+			
+//			start.getROSConn().createTopic("/Config_vals", "std_msgs/String");
+//			start.getROSConn().receiveMsg(start.getROSConn().createTopic("/tempHum", "shared_files/Array"));
+//			start.getROSConn().receiveMsg(start.getROSConn().createTopic("/test", "std_msgs/String"));
+//			start.getROSConn().printRecMsg();
+			
+//			start.getWebConn().sendMsg("device status", start.getWebConn().HUMIDITY_ID, name, true);
+			
 		}
 		
 	}
